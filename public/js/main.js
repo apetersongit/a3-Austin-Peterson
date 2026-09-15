@@ -1,7 +1,7 @@
 // FRONT-END (CLIENT) JAVASCRIPT HERE
 
 let currentData = []
-let editingIndex = null
+let editingId = null
 
 const submit = async function( event ) {
   // stop form submission from trying to load
@@ -22,16 +22,22 @@ const submit = async function( event ) {
 
   let response
   
-  if(editingIndex === null) {
+  if(editingId === null) {
     response = await fetch( '/submit', {
     method:'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(item)
   })
   } else {
     response = await fetch('/edit', {
       method:'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        index: editingIndex, item: item
+        id: editingId, item: item
       })
     })
   }
@@ -42,7 +48,7 @@ const submit = async function( event ) {
 
   document.querySelector('#watchlist-form').reset()
 
-  editingIndex = null
+  editingId = null
   
   document.querySelector('#watchlist-form button').textContent = 'Submit'
 
@@ -66,8 +72,8 @@ const displayData = function(data) {
       <td>${item.platform}</td>
       <td>${item.dateAdded}</td>
       <td>
-        <button onclick="editItem(${i})"> Edit </button>
-        <button onclick="deleteItem(${i})"> Delete </button>
+        <button onclick="editItem('${item._id}')"> Edit </button>
+        <button onclick="deleteItem('${item._id}')"> Delete </button>
       </td>
     `
 
@@ -75,10 +81,12 @@ const displayData = function(data) {
   }
 }
 
-const editItem = function(index) {
-  editingIndex = index
+const editItem = function(id) {
+  editingId = id
 
-  const item = currentData[index]
+  const item = currentData.find(function(item){
+    return item._id === id
+  })
 
   document.querySelector('#title').value = item.title
   document.querySelector('#type').value = item.type
@@ -87,11 +95,19 @@ const editItem = function(index) {
   document.querySelector('#watchlist-form button').textContent = 'Update'
 }
 
-const deleteItem = async function(index) {
+const deleteItem = async function(id) {
   const response = await fetch('/delete', {
     method: 'POST',
-    body: JSON.stringify({index: index})
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({id: id})
   })
+
+  if(!response.ok) {
+    window.location.href = '/login.html'
+    return
+  }
 
   const data = await response.json()
 
@@ -100,6 +116,12 @@ const deleteItem = async function(index) {
 
 const loadData = async function() {
   const response = await fetch('/data')
+
+  if(!response.ok) {
+    window.location.href = '/login.html'
+    return
+  }
+
   const data = await response.json()
   displayData(data)
 }
@@ -107,5 +129,16 @@ const loadData = async function() {
 window.onload = function() {
   const form = document.querySelector('#watchlist-form')
   form.onsubmit = submit
+
+  const logoutButton = document.querySelector('#logout-button')
+
+  logoutButton.addEventListener('click', async function() {
+    await fetch('/logout', {
+      method: 'POST'
+    })
+
+    window.location.href = '/login.html'
+  })
+
   loadData()
 }
